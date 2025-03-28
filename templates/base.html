@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MathQuiz - {% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
+    <style>
+        :root {
+            --primary-color: #b1a0e5;
+            --secondary-color: #8166d8;
+            --background-color: #b1a4dd;
+            --text-color: #333;
+            --shadow: rgba(112, 87, 219, 0.15);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: var(--background-color);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            padding: 0.8rem 2rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .logo i {
+            font-size: 2rem;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 50px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            background: rgba(51, 64, 100, 0.15);
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-links a:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .nav-links a i {
+            font-size: 1.1rem;
+        }
+
+        .container {
+            margin-top: 6rem;
+            margin-bottom: 15px;
+            padding: 2rem;
+            background: white;
+            border-radius: 20px;
+            box-shadow: -2px 7px 30px rgb(0 0 0 / 15%);
+            flex: 1;
+        }
+
+        .alert {
+            background: white;
+            border: none;
+            border-left: 4px solid var(--primary-color);
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.95rem;
+        }
+
+        .alert i {
+            color: var(--primary-color);
+            font-size: 1.2rem;
+        }
+
+        footer {
+            background: #d1cfe0;
+            color: rgb(0, 0, 0);
+            padding: 2rem 0;
+            margin-top: auto;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-content p {
+            margin: 0;
+            font-size: 0.95rem;
+            opacity: 0.9;
+        }
+
+        .social-icons {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .social-icon {
+            color: white;
+            font-size: 1.3rem;
+            opacity: 0.9;
+            transition: all 0.3s ease;
+        }
+
+        .social-icon:hover {
+            opacity: 1;
+            transform: translateY(-2px);
+        }
+
+        .menu-toggle {
+            display: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .user-profile-nav {
+            position: relative;
+            margin-left: 10px;
+        }
+
+        .profile-trigger {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            padding: 8px 15px;
+            border-radius: 50px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .profile-trigger:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .profile-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .profile-avatar i {
+            font-size: 18px;
+            color: white;
+        }
+
+        .profile-name {
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .profile-role {
+            font-size: 0.8rem;
+            opacity: 0.9;
+            margin-left: 5px;
+        }
+
+        .profile-dropdown {
+            position: absolute;
+            top: 120%;
+            right: 0;
+            width: 280px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            display: none;
+            z-index: 1000;
+        }
+
+        .profile-dropdown.active {
+            display: block;
+        }
+
+        .dropdown-header {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .profile-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .profile-info .name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .profile-info .role {
+            font-size: 0.85rem;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .dropdown-items {
+            padding: 8px;
+        }
+
+        .menu-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .menu-group .dropdown-item:nth-child(1) {
+            color: #4b6ecc;
+        }
+
+        .menu-group .dropdown-item:nth-child(1):hover {
+            background: rgba(75, 110, 204, 0.1);
+            color: #3d5aa9;
+        }
+
+        .menu-group .dropdown-item:nth-child(2) {
+            color: #667eea;
+        }
+
+        .menu-group .dropdown-item:nth-child(2):hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #5361bc;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: #eee;
+            margin: 8px 0;
+        }
+
+        .text-danger {
+            color: #dc3545 !important;
+            margin-top: 8px;
+        }
+
+        .text-danger:hover {
+            background: rgba(220, 53, 69, 0.1) !important;
+            color: #bd2130 !important;
+        }
+
+        .dropdown-item i {
+            font-size: 1.1rem;
+        }
+
+        .menu-group .dropdown-item:nth-child(1) i {
+            color: #4b6ecc;
+        }
+
+        .menu-group .dropdown-item:nth-child(2) i {
+            color: #667eea;
+        }
+
+        .text-danger i {
+            color: #dc3545;
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 1rem;
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+
+            .nav-links {
+                position: fixed;
+                top: 72px;
+                left: 0;
+                right: 0;
+                background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+                flex-direction: column;
+                padding: 1.5rem;
+                gap: 1rem;
+                transform: translateY(-150%);
+                opacity: 0;
+                visibility: hidden;
+                transition: all 0.3s ease;
+            }
+
+            .nav-links.active {
+                transform: translateY(0);
+                opacity: 1;
+                visibility: visible;
+                box-shadow: 0 4px 20px var(--shadow);
+            }
+
+            .nav-links a {
+                width: 100%;
+                justify-content: center;
+                font-size: 1rem;
+                padding: 0.8rem 1.5rem;
+            }
+
+            .container {
+                margin: 5rem 1rem 1rem 1rem;
+                padding: 1.5rem;
+            }
+
+            .footer-content {
+                flex-direction: column;
+                gap: 1.5rem;
+                text-align: center;
+            }
+
+            .profile-trigger {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .profile-dropdown {
+                position: fixed;
+                top: auto;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                width: 100%;
+                border-radius: 15px 15px 0 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <i class="fas fa-square-root-alt"></i>
+            MathQuiz
+        </div>
+        <div class="menu-toggle" onclick="toggleMenu()">
+            <i class="fas fa-bars"></i>
+        </div>
+        <div class="nav-links">
+            <a href="{{ url_for('home') }}">
+                <i class="fas fa-home"></i>
+                Trang chủ
+            </a>
+            {% if 'user_id' in session %}
+                <a href="{{ url_for('history') }}">
+                    <i class="fas fa-history"></i>
+                    Lịch sử bài kiểm tra
+                </a>
+                {% if session['role'] == 'teacher' %}
+                    <a href="{{ url_for('create_quiz') }}">
+                        <i class="fas fa-plus-circle"></i>
+                        Tạo bài kiểm tra
+                    </a>
+                    <a href="{{ url_for('teacher_dashboard') }}">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        Bảng điều khiển
+                    </a>
+                {% endif %}
+                <div class="user-profile-nav">
+                    <button class="profile-trigger" onclick="toggleProfileMenu()">
+                        <div class="profile-avatar">
+                            <i class="fas fa-user-circle"></i>
+                        </div>
+                        <span class="profile-name">{{ session['username'] }}</span>
+                        <span class="profile-role">
+                            {% if session['role'] == 'teacher' %}
+                                Giáo viên
+                            {% else %}
+                                Học sinh
+                            {% endif %}
+                        </span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="profile-dropdown" id="profileMenu">
+                        <div class="dropdown-header">
+                            <div class="profile-info">
+                                <span class="name">{{ session['username'] }}</span>
+                                <span class="role">
+                                    {% if session['role'] == 'teacher' %}
+                                        <i class="fas fa-chalkboard-teacher"></i> Giáo viên
+                                    {% else %}
+                                        <i class="fas fa-user-graduate"></i> Học sinh
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="dropdown-items">
+                            <div class="menu-group">
+                                <a href="{{ url_for('profile') }}" class="dropdown-item">
+                                    <i class="fas fa-user"></i>
+                                    Thông tin cá nhân
+                                </a>
+                                <a href="{{ url_for('settings') }}" class="dropdown-item">
+                                    <i class="fas fa-cog"></i>
+                                    Cài đặt tài khoản
+                                </a>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <a href="{{ url_for('logout') }}" class="dropdown-item text-danger">
+                                <i class="fas fa-sign-out-alt"></i>
+                                Đăng xuất
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <a href="{{ url_for('login') }}">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Đăng nhập
+                </a>
+                <a href="{{ url_for('register') }}">
+                    <i class="fas fa-user-plus"></i>
+                    Đăng ký
+                </a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <div class="container">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert">
+                        <i class="fas fa-info-circle"></i>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </div>
+
+    {% if request.endpoint == 'home' %}
+    <footer>
+        <div class="footer-content">
+            <p>&copy; 2025 MathQuiz - Nền tảng kiểm tra toán học trực tuyến</p>
+            <div class="social-icons">
+                <a href="#" class="social-icon">
+                    <i class="fab fa-facebook"></i>
+                </a>
+                <a href="#" class="social-icon">
+                    <i class="fab fa-instagram"></i>
+                </a>
+            </div>
+        </div>
+    </footer>
+    {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function toggleMenu() {
+            document.querySelector('.nav-links').classList.toggle('active');
+        }
+
+        function toggleProfileMenu() {
+            const menu = document.getElementById('profileMenu');
+            menu.classList.toggle('active');
+
+            document.addEventListener('click', function(event) {
+                const trigger = event.target.closest('.profile-trigger');
+                const dropdown = event.target.closest('.profile-dropdown');
+                
+                if (!trigger && !dropdown && menu.classList.contains('active')) {
+                    menu.classList.remove('active');
+                }
+            });
+        }
+    </script>
+</body>
+</html> 
