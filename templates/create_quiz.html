@@ -9,7 +9,7 @@
         <h1>Tạo Bài Kiểm Tra Mới</h1>
     </div>
     
-    <form method="POST" class="quiz-form">
+    <form method="POST" action="{{ url_for('create_quiz') }}" class="quiz-form" enctype="multipart/form-data">
         <div class="form-section">
             <h2><i class="fas fa-info-circle"></i> Thông tin cơ bản</h2>
             <div class="form-group">
@@ -59,7 +59,37 @@
 
                 <div class="form-group">
                     <label>Nội dung câu hỏi:</label>
-                    <textarea name="questions[]" required></textarea>
+                    <div class="editor-wrapper">
+                        <div class="latex-toolbar">
+                            <button type="button" class="latex-btn" onclick="insertLatex(this, '\\frac{a}{b}')">
+                                <i class="fas fa-divide"></i> \frac{a}{b}
+                            </button>
+                            <button type="button" class="latex-btn" onclick="insertLatex(this, '\\sqrt{x}')">
+                                <i class="fas fa-square-root-alt"></i> \sqrt{x}
+                            </button>
+                            <button type="button" class="latex-btn" onclick="insertLatex(this, '\\sum_{i=1}^{n}')">
+                                <i class="fas fa-sigma"></i> \sum
+                            </button>
+                            <button type="button" class="latex-btn" onclick="insertLatex(this, '\\int_{a}^{b}')">
+                                <i class="fas fa-integral"></i> \int
+                            </button>
+                            <button type="button" class="latex-btn" onclick="insertLatex(this, 'x^2')">
+                                x<sup>2</sup>
+                            </button>
+                            <button type="button" class="latex-btn" onclick="insertLatex(this, 'x_i')">
+                                x<sub>i</sub>
+                            </button>
+                        </div>
+                        <textarea class="math-editor" name="questions[]" required></textarea>
+                        <div class="preview-area">
+                            <div class="math-preview">Xem trước LaTeX</div>
+                        </div>
+                        <div class="image-upload">
+                            <label for="question_image_1"><i class="fas fa-image"></i> Thêm hình ảnh</label>
+                            <input type="file" id="question_image_1" name="question_images[]" accept="image/*" onchange="previewImage(this)">
+                            <div class="image-preview"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -76,19 +106,31 @@
                         <div class="options-grid">
                             <div class="option-item">
                                 <span class="option-label">A</span>
-                                <input type="text" name="option1[]" placeholder="Lựa chọn A" required>
+                                <div class="option-editor">
+                                    <textarea class="math-editor option-input" name="option1[]" placeholder="Lựa chọn A" required></textarea>
+                                    <div class="option-preview"></div>
+                                </div>
                             </div>
                             <div class="option-item">
                                 <span class="option-label">B</span>
-                                <input type="text" name="option2[]" placeholder="Lựa chọn B" required>
+                                <div class="option-editor">
+                                    <textarea class="math-editor option-input" name="option2[]" placeholder="Lựa chọn B" required></textarea>
+                                    <div class="option-preview"></div>
+                                </div>
                             </div>
                             <div class="option-item">
                                 <span class="option-label">C</span>
-                                <input type="text" name="option3[]" placeholder="Lựa chọn C" required>
+                                <div class="option-editor">
+                                    <textarea class="math-editor option-input" name="option3[]" placeholder="Lựa chọn C" required></textarea>
+                                    <div class="option-preview"></div>
+                                </div>
                             </div>
                             <div class="option-item">
                                 <span class="option-label">D</span>
-                                <input type="text" name="option4[]" placeholder="Lựa chọn D" required>
+                                <div class="option-editor">
+                                    <textarea class="math-editor option-input" name="option4[]" placeholder="Lựa chọn D" required></textarea>
+                                    <div class="option-preview"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -117,6 +159,8 @@
     max-width: 1000px;
     margin: 2rem auto;
     padding: 0 1rem;
+    border-radius: 15px;
+    border: 0.5px solid #cbd5e0;
     padding-bottom: 30px;
 }
 .create-quiz-container h1 {
@@ -283,6 +327,7 @@ textarea {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
+    border: none;
 }
 
 .btn-primary {
@@ -292,8 +337,8 @@ textarea {
 }
 
 .btn-secondary {
-    background: white;
-    color: #fafafa;
+    background: #4a5568;
+    color: white;
     border-radius: 20px;
 }
 
@@ -307,30 +352,7 @@ textarea {
 }
 
 .btn-secondary:hover {
-    background: #f8fafc;
-}
-
-@media (max-width: 768px) {
-    .create-quiz-container {
-        margin: 1rem;
-    }
-    
-    .form-row {
-        grid-template-columns: 1fr;
-    }
-    
-    .options-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .form-actions {
-        flex-direction: column;
-    }
-    
-    .btn {
-        width: 100%;
-        justify-content: center;
-    }
+    background: #2d3748;
 }
 
 .checkbox-label {
@@ -358,29 +380,221 @@ textarea {
     color: #718096;
     font-size: 0.875rem;
 }
+
+/* Phần CSS mới cho LaTeX và tải lên hình ảnh */
+.editor-wrapper {
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.latex-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background-color: #f7fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.latex-btn {
+    padding: 0.3rem 0.6rem;
+    background-color: #edf2f7;
+    border: 1px solid #cbd5e0;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.latex-btn:hover {
+    background-color: #e2e8f0;
+}
+
+.math-editor {
+    min-height: 120px;
+    width: 100%;
+    padding: 0.8rem;
+    border: none;
+    font-family: monospace;
+    font-size: 0.95rem;
+    resize: vertical;
+}
+
+.preview-area {
+    padding: 1rem;
+    background-color: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    min-height: 60px;
+}
+
+.math-preview {
+    font-size: 0.95rem;
+    color: #4a5568;
+}
+
+.image-upload {
+    border-radius: 10px;
+    padding: 1rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.image-upload label {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background-color: #c8e1e7;
+    border: 1px solid #cbd5e0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.image-upload label:hover {
+    background-color: #e2e8f0;
+}
+
+.image-upload input[type="file"] {
+    display: none;
+}
+
+.image-preview {
+    margin-top: 0.5rem;
+    max-width: 100%;
+}
+
+.image-preview img {
+    max-width: 300px;
+    max-height: 200px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+}
+
+.option-editor {
+    flex: 1;
+}
+
+.option-input {
+    min-height: 60px;
+}
+
+
+@media (max-width: 768px) {
+    .create-quiz-container {
+        margin: 1rem;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .options-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .latex-toolbar {
+        flex-wrap: wrap;
+    }
+}
 </style>
 
+<!-- Thêm thư viện MathJax cho LaTeX -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script> -->
+
 <script>
+// Cài đặt MathJax
+window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$','$$'], ['\\[','\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+
+// Thêm LaTeX vào vùng soạn thảo
+function insertLatex(button, latexCode) {
+    const editor = button.closest('.editor-wrapper').querySelector('.math-editor');
+    const startPos = editor.selectionStart;
+    const endPos = editor.selectionEnd;
+    const text = editor.value;
+    
+    // Sử dụng $...$ cho LaTeX inline
+    const insertText = '$ ' + latexCode + ' $';
+    
+    editor.value = text.substring(0, startPos) + insertText + text.substring(endPos);
+    editor.focus();
+    editor.selectionStart = startPos + insertText.length;
+    editor.selectionEnd = startPos + insertText.length;
+    
+    // Cập nhật xem trước
+    updatePreview(editor);
+}
+
+// Cập nhật xem trước LaTeX
+function updatePreview(editor) {
+    const previewArea = editor.closest('.editor-wrapper').querySelector('.math-preview');
+    previewArea.innerHTML = editor.value;
+
+    // Đảm bảo MathJax xử lý LaTeX sau khi cập nhật nội dung
+    if (window.MathJax) {
+        MathJax.typesetPromise([previewArea]).catch(function (err) {
+            console.error('MathJax typesetting failed:', err);
+        });
+    }
+}
+
+// Xem trước hình ảnh khi tải lên
+function previewImage(input) {
+    const previewArea = input.parentElement.querySelector('.image-preview');
+    previewArea.innerHTML = '';
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            previewArea.appendChild(img);
+        }
+        
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// Chuyển đổi loại câu hỏi
 function toggleAnswerType(select) {
     const questionItem = select.closest('.question-item');
     const multipleChoiceOptions = questionItem.querySelector('.multiple-choice-options');
-    const correctAnswerInput = questionItem.querySelector('input[name="correct_answers[]"]');
     
     if (select.value === 'multiple_choice') {
         multipleChoiceOptions.style.display = 'block';
         // Bắt buộc các trường lựa chọn
-        multipleChoiceOptions.querySelectorAll('input[type="text"]').forEach(input => {
+        multipleChoiceOptions.querySelectorAll('.option-input').forEach(input => {
             input.required = true;
         });
     } else {
         multipleChoiceOptions.style.display = 'none';
         // Bỏ bắt buộc các trường lựa chọn
-        multipleChoiceOptions.querySelectorAll('input[type="text"]').forEach(input => {
+        multipleChoiceOptions.querySelectorAll('.option-input').forEach(input => {
             input.required = false;
         });
     }
 }
 
+// Thêm câu hỏi mới
 function addQuestion() {
     const container = document.getElementById('questions-container');
     const questionCount = container.querySelectorAll('.question-item').length + 1;
@@ -395,7 +609,37 @@ function addQuestion() {
 
         <div class="form-group">
             <label>Nội dung câu hỏi:</label>
-            <textarea name="questions[]" required></textarea>
+            <div class="editor-wrapper">
+                <div class="latex-toolbar">
+                    <button type="button" class="latex-btn" onclick="insertLatex(this, '\\\\frac{a}{b}')">
+                        <i class="fas fa-divide"></i> \\frac{a}{b}
+                    </button>
+                    <button type="button" class="latex-btn" onclick="insertLatex(this, '\\\\sqrt{x}')">
+                        <i class="fas fa-square-root-alt"></i> \\sqrt{x}
+                    </button>
+                    <button type="button" class="latex-btn" onclick="insertLatex(this, '\\\\sum_{i=1}^{n}')">
+                        <i class="fas fa-sigma"></i> \\sum
+                    </button>
+                    <button type="button" class="latex-btn" onclick="insertLatex(this, '\\\\int_{a}^{b}')">
+                        <i class="fas fa-integral"></i> \\int
+                    </button>
+                    <button type="button" class="latex-btn" onclick="insertLatex(this, 'x^2')">
+                        x<sup>2</sup>
+                    </button>
+                    <button type="button" class="latex-btn" onclick="insertLatex(this, 'x_i')">
+                        x<sub>i</sub>
+                    </button>
+                </div>
+                <textarea class="math-editor" name="questions[]" required oninput="updatePreview(this)"></textarea>
+                <div class="preview-area">
+                    <div class="math-preview">Xem trước LaTeX</div>
+                </div>
+                <div class="image-upload">
+                    <label for="question_image_${questionCount}"><i class="fas fa-image"></i> Thêm hình ảnh:</label>
+                    <input type="file" id="question_image_${questionCount}" name="question_images[]" accept="image/*" onchange="previewImage(this)">
+                    <div class="image-preview"></div>
+                </div>
+            </div>
         </div>
 
         <div class="form-group">
@@ -412,19 +656,31 @@ function addQuestion() {
                 <div class="options-grid">
                     <div class="option-item">
                         <span class="option-label">A</span>
-                        <input type="text" name="option1[]" placeholder="Lựa chọn A" required>
+                        <div class="option-editor">
+                            <textarea class="math-editor option-input" name="option1[]" placeholder="Lựa chọn A" required oninput="updatePreview(this)"></textarea>
+                            <div class="option-preview"></div>
+                        </div>
                     </div>
                     <div class="option-item">
                         <span class="option-label">B</span>
-                        <input type="text" name="option2[]" placeholder="Lựa chọn B" required>
+                        <div class="option-editor">
+                            <textarea class="math-editor option-input" name="option2[]" placeholder="Lựa chọn B" required oninput="updatePreview(this)"></textarea>
+                            <div class="option-preview"></div>
+                        </div>
                     </div>
                     <div class="option-item">
                         <span class="option-label">C</span>
-                        <input type="text" name="option3[]" placeholder="Lựa chọn C" required>
+                        <div class="option-editor">
+                            <textarea class="math-editor option-input" name="option3[]" placeholder="Lựa chọn C" required oninput="updatePreview(this)"></textarea>
+                            <div class="option-preview"></div>
+                        </div>
                     </div>
                     <div class="option-item">
                         <span class="option-label">D</span>
-                        <input type="text" name="option4[]" placeholder="Lựa chọn D" required>
+                        <div class="option-editor">
+                            <textarea class="math-editor option-input" name="option4[]" placeholder="Lựa chọn D" required oninput="updatePreview(this)"></textarea>
+                            <div class="option-preview"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -437,14 +693,39 @@ function addQuestion() {
     `;
     
     container.appendChild(newQuestion);
+    
+    // Khởi tạo chuyển đổi câu hỏi
+    const select = newQuestion.querySelector('.question-type');
+    toggleAnswerType(select);
+    
+    // Khởi tạo các trình soạn thảo
+    const editors = newQuestion.querySelectorAll('.math-editor');
+    editors.forEach(editor => {
+        editor.addEventListener('input', function() {
+            updatePreview(this);
+        });
+    });
 }
 
-// Khởi tạo trạng thái ban đầu cho câu hỏi đầu tiên
+// Khởi tạo trạng thái ban đầu cho các phần tử
 document.addEventListener('DOMContentLoaded', function() {
+    // Khởi tạo loại câu hỏi
     const firstQuestionType = document.querySelector('.question-type');
     if (firstQuestionType) {
         toggleAnswerType(firstQuestionType);
     }
+    
+    // Khởi tạo xem trước LaTeX
+    const editors = document.querySelectorAll('.math-editor');
+    editors.forEach(editor => {
+        editor.addEventListener('input', function() {
+            updatePreview(this);
+        });
+        
+        // Kích hoạt mặc định cho nội dung ban đầu
+        updatePreview(editor);
+    });
 });
 </script>
-{% endblock %} 
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+{% endblock %}

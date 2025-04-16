@@ -1,3 +1,5 @@
+from sqlalchemy.orm import joinedload
+from markupsafe import Markup
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -10,10 +12,18 @@ from sqlalchemy.exc import IntegrityError
 import random
 import string
 import re
+from werkzeug.utils import secure_filename
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mathquiz.db'
+# Cấu hình upload
+UPLOAD_FOLDER = 'static/uploads/question_images'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 # Models
@@ -34,21 +44,25 @@ class Quiz(db.Model):
     duration = db.Column(db.Integer, nullable=False)  # in minutes
     max_attempts = db.Column(db.Integer, nullable=True, default=None)  # Số lần làm bài tối đa
     is_public = db.Column(db.Boolean, default=False)  # Thêm trường is_public
-    questions = db.relationship('Question', backref='quiz', lazy=True)
+    questions = db.relationship('Question', backref='quiz', lazy='joined')
     teacher = db.relationship('User', backref='quizzes', lazy=True)
 
 class Question(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     quiz_id = db.Column(db.Integer, db.ForeignKey('quiz.id'), nullable=False)
-    question_text = db.Column(db.String(500), nullable=False)
+    #question_text = db.Column(db.String(500), nullable=False)
+    question_text = db.Column(db.Text, nullable=False) #Đổi String thành Text để lưu LaTeX dài
     question_type = db.Column(db.String(20), nullable=False)  # 'multiple_choice' or other types
-    correct_answer = db.Column(db.String(500), nullable=False)
-    answers = db.relationship('Answer', backref='question', lazy=True)
+    #correct_answer = db.Column(db.String(500), nullable=False)
+    correct_answer = db.Column(db.Text, nullable=False)  # Đổi String thành Text
+    image_path = db.Column(db.String(255), nullable=False)  # Thêm đường dẫn hình ảnh
+    answers = db.relationship('Answer', backref='question', lazy='joined')
 
 class Answer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     question_id = db.Column(db.Integer, db.ForeignKey('question.id'), nullable=False)
-    answer_text = db.Column(db.String(500), nullable=False)
+    #answer_text = db.Column(db.String(500), nullable=False)
+    answer_text = db.Column(db.Text, nullable=False)
 
 class QuizResult(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -70,7 +84,8 @@ class UserProfile(db.Model):
     avatar = db.Column(db.String(200))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    user = db.relationship('User', backref='profile', lazy=True)
+    # Define the relationship to User with a backref that sets up User.profile as one-to-one
+    user = db.relationship('User', backref=db.backref('profile', uselist=False), lazy=True)
 
 class PasswordResetToken(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -222,6 +237,10 @@ def generate_quiz_code():
         if not Quiz.query.filter_by(quiz_code=code).first():
             return code
 
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 @app.route('/create_quiz', methods=['GET', 'POST'])
 def create_quiz():
     if 'user_id' not in session:
@@ -239,8 +258,15 @@ def create_quiz():
             start_time = datetime.strptime(request.form['start_time'], '%Y-%m-%dT%H:%M')
             end_time = datetime.strptime(request.form['end_time'], '%Y-%m-%dT%H:%M')
             duration = int(request.form['duration'])
-            max_attempts = request.form.get('max_attempts')  # Lấy giá trị max_attempts từ form
-            is_public = request.form.get('is_public') == 'on'  # Lấy giá trị is_public từ form
+            #max_attempts = request.form.get('max_attempts')  # Lấy giá trị max_attempts từ form
+            #is_public = request.form.get('is_public') == 'on'  # Lấy giá trị is_public từ form
+            max_attempts = request.form['max_attempts'] if request.form['max_attempts'] else None
+            is_public = 'is_public' in request.form
+            
+            # Tạo mã quiz ngẫu nhiên
+            import random, string
+            def generate_quiz_code(length=6):
+                return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
             
             quiz = Quiz(
                 title=title,
@@ -260,27 +286,71 @@ def create_quiz():
             questions = request.form.getlist('questions[]')
             question_types = request.form.getlist('question_types[]')
             correct_answers = request.form.getlist('correct_answers[]')
+            question_images = request.files.getlist('question_images[]')
             
             # Thêm câu hỏi và câu trả lời
             for i in range(len(questions)):
+                # Process image upload
+                image_path = None
+                if question_images and i < len(question_images):
+                    image = question_images[i]
+                    if image and image.filename != '':
+                        if allowed_file(image.filename):
+                            filename = secure_filename(image.filename)
+                            unique_filename = f"{quiz.id}_{i}_{filename}"
+                            upload_folder = app.config['UPLOAD_FOLDER']
+                            os.makedirs(upload_folder, exist_ok=True)
+                            file_path = os.path.join(upload_folder, unique_filename)
+                            image.save(file_path)
+                            image_path = f"uploads/question_images/{unique_filename}"
+
                 question = Question(
                     quiz_id=quiz.id,
                     question_text=questions[i],
                     question_type=question_types[i],
-                    correct_answer=correct_answers[i]
+                    correct_answer=correct_answers[i],
+                    image_path=image_path
                 )
                 db.session.add(question)
                 db.session.flush()
                 
+                # if question_types[i] == 'multiple_choice':
+                #     # Debug option keys
+                #     print(f"Creating answers for question {i+1}: {questions[i]}")
+                    
+                #     for j in range(1,5):
+                #         option_key = f'option{j}_{i}[]'
+                #         options = request.form.getlist(option_key)
+                #         print(f"Option key: {option_key}, Values: {options}")
+                        
+                #         if options and len(options) > 0 and options[0].strip():
+                #             answer = Answer(
+                #                 question_id=question.id,
+                #                 answer_text=options[0]
+                #             )
+                #             db.session.add(answer)
+                #             print(f"Added answer: {options[0]}")
                 if question_types[i] == 'multiple_choice':
-                    for j in range(4):
-                        option = request.form.getlist(f'option{j+1}[]')[i]
-                        if option:
+                    options1 = request.form.getlist('option1[]')
+                    options2 = request.form.getlist('option2[]')
+                    options3 = request.form.getlist('option3[]')
+                    options4 = request.form.getlist('option4[]')
+
+                    options = [
+                        options1[i] if i < len(options1) else "",
+                        options2[i] if i < len(options2) else "",
+                        options3[i] if i < len(options3) else "",
+                        options4[i] if i < len(options4) else "",
+                    ]
+
+                    for opt_text in options:
+                        if opt_text.strip():
                             answer = Answer(
                                 question_id=question.id,
-                                answer_text=option
+                                answer_text=opt_text
                             )
                             db.session.add(answer)
+
             
             db.session.commit()
             flash(f'Quiz created successfully! Quiz Code: {quiz.quiz_code}')
@@ -288,7 +358,7 @@ def create_quiz():
             
         except Exception as e:
             db.session.rollback()
-            flash(f'Có lỗi xảy ra khi tạo bài kiểm tra: {str(e)}')
+            flash(f'Có lỗi xảy ra khi tạo bài kiểm tra: {str(e)}', 'danger')
             return redirect(url_for('create_quiz'))
     
     return render_template('create_quiz.html')
@@ -454,11 +524,19 @@ def search_quiz():
     if not keyword:
         return redirect(url_for('home'))
     
-    # Tìm kiếm tất cả bài kiểm tra
+    # Find all quizzes matching the keyword, eagerly load teacher and profile
     quizzes = Quiz.query.join(User, Quiz.teacher_id == User.id)\
+                       .options(joinedload(Quiz.teacher).joinedload(User.profile))\
                        .filter(Quiz.title.ilike(f'%{keyword}%'))\
                        .all()
     
+    # Add teacher_name attribute to each quiz
+    for quiz in quizzes:
+        teacher = quiz.teacher
+        profile = teacher.profile # Access the profile directly (assuming one-to-one)
+        # Use full_name if available, otherwise fallback to username
+        quiz.teacher_name = profile.full_name if profile and profile.full_name else teacher.username
+        
     return render_template('search_results.html', 
                          quizzes=quizzes, 
                          keyword=keyword)
@@ -542,8 +620,11 @@ def take_quiz(quiz_id):
             return redirect(url_for('home'))
 
     # Lấy danh sách câu hỏi của bài kiểm tra
-    questions = Question.query.filter_by(quiz_id=quiz_id).all()
-    
+    #questions = Question.query.filter_by(quiz_id=quiz_id).all()
+    # Dùng joinedload để lấy luôn answers của mỗi question
+    questions = Question.query.filter_by(quiz_id=quiz.id)\
+        .options(joinedload(Question.answers))\
+        .all()
     # Debug: In ra số lượng câu hỏi
     print(f"Number of questions: {len(questions)}")
     for q in questions:
@@ -555,6 +636,7 @@ def take_quiz(quiz_id):
                 print(f"- {a.answer_text}")
 
     return render_template('take_quiz.html', quiz=quiz, questions=questions)
+
 @app.route('/quiz/submit/<int:quiz_id>', methods=['POST'])
 def submit_quiz(quiz_id):
     if 'user_id' not in session or session['role'] != 'student':
@@ -594,7 +676,7 @@ def submit_quiz(quiz_id):
             #selected_answer = Answer.query.get(int(answer)) if answer else None
             selected_answer = db.session.get(Answer, int(answer)) if answer else None
 
-            if selected_answer and selected_answer.answer_text == question.correct_answer:
+            if selected_answer and selected_answer.answer_text.strip() == question.correct_answer.strip():
                 score += 1
         else:  # fill_in_blank
             if answer and answer.strip().lower() == question.correct_answer.strip().lower():
@@ -645,24 +727,51 @@ def results_page(quiz_id):
 
     # Lấy câu trả lời của học sinh
    
-    student_answers = db.session.query(StudentAnswer.question_id, Answer.answer_text).join(
-        Answer, StudentAnswer.answer_text == Answer.id
-    ).filter(
-        StudentAnswer.quiz_id == quiz_id, 
-        StudentAnswer.student_id == session["user_id"]
+    # Truy vấn tất cả câu trả lời của học sinh trong bài quiz
+    student_answers = StudentAnswer.query.filter_by(
+        quiz_id=quiz_id, 
+        student_id=session["user_id"]
     ).all()
-    
-    # Chuyển đổi dữ liệu thành dictionary {question_id: answer_text}
-    student_answers_dict = {answer.question_id: answer.answer_text for answer in student_answers}
 
-    # Chuẩn bị dữ liệu cho template    
+    # Lấy toàn bộ câu trả lời từ bảng Answer trước (để tránh truy vấn nhiều lần trong vòng lặp)
+    all_answers = {a.id: a.answer_text for a in Answer.query.all()}
+
+    # Tạo dict: {question_id: answer_text}
+    student_answers_dict = {}
+    for answer in student_answers:
+        question = Question.query.get(answer.question_id)
+        if not question:
+            continue  # Bỏ qua nếu câu hỏi không tồn tại
+
+        if question.question_type == 'multiple_choice':
+            # Trắc nghiệm: answer_text là ID, tra ra text từ all_answers
+            answer_text = all_answers.get(int(answer.answer_text), "Chưa trả lời")
+        else:
+            # Fill-in-the-blank: answer_text là text người dùng nhập vào
+            answer_text = answer.answer_text
+
+        student_answers_dict[answer.question_id] = answer_text
+
+    # So sánh và tạo danh sách kết quả
     results = []
     for question in questions:
-        user_answer = student_answers_dict.get(question.id, "Chưa trả lời")  # Nếu không có thì để "Chưa trả lời"
-        is_correct = user_answer.strip().lower() == question.correct_answer.strip().lower() if user_answer != "Chưa trả lời" else False
-        results.append((question.question_text, user_answer, question.correct_answer, is_correct))
-    
-    
+        user_answer = student_answers_dict.get(question.id, "Chưa trả lời")
+        is_correct = False
+
+        if user_answer != "Chưa trả lời":
+            if question.question_type == 'multiple_choice':
+                is_correct = user_answer.strip() == question.correct_answer.strip()
+            else:  # fill_in_blank
+                is_correct = user_answer.strip().lower() == question.correct_answer.strip().lower()
+
+        results.append((
+            Markup(question.question_text),
+            Markup(user_answer),
+            Markup(question.correct_answer),
+            is_correct,
+            question.question_type
+        ))
+
 
     return render_template(
         'results_after.html', 
